@@ -14,25 +14,29 @@
  * @license    http://www.shippit.com/terms
  */
 
-class Shippit_Shippit_Model_System_Config_Source_Shippit_Sync_Mode
+class Shippit_Shippit_Model_System_Config_Source_Shippit_Margin
 {
+    const NONE = '';
+    const PERCENTAGE = 'percentage';
+    const FIXED = 'fixed';
+
     public function toOptionArray()
     {
         $optionsArray = array(
             array(
-                'label' => 'Realtime',
-                'value' => Shippit_Shippit_Helper_Data::SYNC_MODE_REALTIME
+                'label' => 'No',
+                'value' => self::NONE
             ),
             array(
-                'label' => 'Scheduled',
-                'value' => Shippit_Shippit_Helper_Data::SYNC_MODE_CRON
+                'label' => 'Yes - Percentage',
+                'value' => self::PERCENTAGE
             ),
             array(
-                'label' => 'Custom',
-                'value' => Shippit_Shippit_Helper_Data::SYNC_MODE_CUSTOM
+                'label' => 'Yes - Fixed Amount',
+                'value' => self::FIXED
             )
         );
-
+        
         return $optionsArray;
     }
 }

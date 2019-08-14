@@ -23,15 +23,6 @@ class Shippit_Shippit_Helper_Bugsnag extends Mage_Core_Helper_Abstract
     public function init()
     {
         if (!$this->client) {
-            if (file_exists(Mage::getBaseDir('lib') . '/shippit-bugsnag/Autoload.php')) {
-                require_once(Mage::getBaseDir('lib') . '/shippit-bugsnag/Autoload.php');
-            }
-            else {
-                Mage::log('Shippit Bugsnag Error', 'Couldn\'t activate Bugsnag Error Monitoring due to missing Bugsnag PHP library!', null, 'shippit.log');
-                
-                return false;
-            }
-
             // Allow override of bugsnag key
             // this can be your own bugsnag api key, or an empty string
             // to disable bugsnag logging if required
@@ -47,19 +38,21 @@ class Shippit_Shippit_Helper_Bugsnag extends Mage_Core_Helper_Abstract
                 return $this->client;
             }
 
+            if (file_exists(Mage::getBaseDir('lib') . '/shippit-bugsnag/Autoload.php')) {
+                require_once(Mage::getBaseDir('lib') . '/shippit-bugsnag/Autoload.php');
+            }
+            else {
+                Mage::log('Shippit Bugsnag Error', 'Couldn\'t activate Bugsnag Error Monitoring due to missing Bugsnag PHP library!', null, 'shippit.log');
+
+                return false;
+            }
+
             $this->client = new Bugsnag_Client($apiKey);
             $this->client->setReleaseStage($this->getReleaseStage())
                  ->setErrorReportingLevel($this->getErrorReportingLevel())
                  ->setMetaData($this->getMetaData());
-            
+
             $this->client->setNotifier($this->getNotiferData());
-            
-            set_error_handler(
-                array($this->client, "errorHandler")
-            );
-            set_exception_handler(
-                array($this->client, "exceptionHandler")
-            );
         }
 
         return $this->client;
@@ -75,7 +68,7 @@ class Shippit_Shippit_Helper_Bugsnag extends Mage_Core_Helper_Abstract
         $metaData = array();
 
         $metaData['magento'] = array(
-            'edition' => Mage::getEdition(),
+            'edition' => $this->getEdition(),
             'version' => Mage::getVersion(),
         );
         $metaData['module'] = $this->getModuleInfo();
@@ -118,5 +111,17 @@ class Shippit_Shippit_Helper_Bugsnag extends Mage_Core_Helper_Abstract
         }
 
         return $level;
+    }
+
+    private function getEdition()
+    {
+        $mage = new Mage;
+
+        if (method_exists($mage, 'getEdition')) {
+            return Mage::getEdition();
+        }
+        else {
+            return 'Unknown';
+        }
     }
 }

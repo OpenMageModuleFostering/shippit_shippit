@@ -14,22 +14,22 @@
  * @license    http://www.shippit.com/terms
  */
 
-class Shippit_Shippit_Model_System_Config_Source_Shippit_Sync_Mode
+class Shippit_Shippit_Model_System_Config_Source_Catalog_Unit_Dimensions
 {
     public function toOptionArray()
     {
         $optionsArray = array(
             array(
-                'label' => 'Realtime',
-                'value' => Shippit_Shippit_Helper_Data::SYNC_MODE_REALTIME
+                'label' => 'Millimetres (mm)',
+                'value' => Shippit_Shippit_Helper_Sync_Item::UNIT_DIMENSION_MILLIMETRES
             ),
             array(
-                'label' => 'Scheduled',
-                'value' => Shippit_Shippit_Helper_Data::SYNC_MODE_CRON
+                'label' => 'Centimetres (cm)',
+                'value' => Shippit_Shippit_Helper_Sync_Item::UNIT_DIMENSION_CENTIMETRES
             ),
             array(
-                'label' => 'Custom',
-                'value' => Shippit_Shippit_Helper_Data::SYNC_MODE_CUSTOM
+                'label' => 'Metres (m)',
+                'value' => Shippit_Shippit_Helper_Sync_Item::UNIT_DIMENSION_METRES
             )
         );
 

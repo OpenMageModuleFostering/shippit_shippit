@@ -26,7 +26,7 @@ class Shippit_Shippit_Model_Observer_Order_Sync
         $this->helper = Mage::helper('shippit/sync_order');
         $this->logger = Mage::getModel('shippit/logger');
     }
-    
+
     /**
      * Set the order to be synced with shippit
      * @param Varien_Event_Observer $observer [description]
@@ -46,7 +46,7 @@ class Shippit_Shippit_Model_Observer_Order_Sync
         $order = $observer->getEvent()->getOrder();
 
         // Ensure we have an order
-        if (!$order || !$order->getId()) {
+        if (!$order || !$order->getId() || $order->getIsVirtual()) {
             return $this;
         }
 
@@ -79,8 +79,12 @@ class Shippit_Shippit_Model_Observer_Order_Sync
                 // If the sync mode is realtime,
                 // or the shipping method is priority
                 // - attempt realtime sync now
-                if ($this->helper->getMode() == Shippit_Shippit_Helper_Data::SYNC_MODE_REALTIME
-                    || $shippitShippingMethod == 'priority') {
+                if (($this->helper->getMode() == Shippit_Shippit_Helper_Data::SYNC_MODE_REALTIME
+                    || $shippitShippingMethod == 'priority')
+                    // we use the order object passed in the event
+                    // handler, as the syncOrder object does yet
+                    // have the order status details in the DB
+                    && $this->_canSync($syncOrder, $order)) {
                     $this->_syncOrder($syncOrder);
                 }
             }
@@ -95,22 +99,44 @@ class Shippit_Shippit_Model_Observer_Order_Sync
 
     private function _syncOrder($syncOrder)
     {
-        $order = $syncOrder->getOrder();
+        $this->_hasAttemptedSync = true;
 
-        if (!$this->_hasAttemptedSync
-            // ensure the order is in the processing state
-            && $order->getState() == Mage_Sales_Model_Order::STATE_PROCESSING
-            // ensure the sync order is in the pending state
-            && $syncOrder->getStatus() == Shippit_Shippit_Model_Sync_Order::STATUS_PENDING) {
-            $this->_hasAttemptedSync = true;
-            
-            // attempt the sync
-            $syncOrderResult = Mage::getModel('shippit/api_order')->sync($syncOrder);
+        // attempt the sync
+        $syncOrderResult = Mage::getModel('shippit/api_order')->sync($syncOrder);
 
-            return $syncOrderResult;
-        }
-        else {
+        return $syncOrderResult;
+    }
+
+    /**
+     * Determines whether the sync order can be sent now
+     *
+     * @param  Object $syncOrder The sync order object being evaluated
+     * @return Boolean           True or false
+     */
+    private function _canSync($syncOrder, $order)
+    {
+        if ($this->_hasAttemptedSync) {
             return false;
         }
+
+        if ($order->getState() !== Mage_Sales_Model_Order::STATE_PROCESSING) {
+            return false;
+        }
+
+        if ($syncOrder->getStatus() == Shippit_Shippit_Model_Sync_Order::STATUS_PENDING) {
+            return false;
+        }
+
+        // Check if sync by order status is active
+        if ($this->helper->isFilterOrderStatusActive()) {
+            $filterStatus = $this->helper->getFilterOrderStatus();
+            $orderStatus = $order->getStatus();
+
+            if (!in_array($orderStatus, $filterStatus)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

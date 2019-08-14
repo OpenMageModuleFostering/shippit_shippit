@@ -18,35 +18,24 @@ $installer = $this;
 $installer->startSetup();
 
 /**
- * Migrate settings data from v4.2.3 to v4.2.4
+ * Migrate settings data from v4.4.0 to v4.5.0
  */
-
 $configOptions = array(
-    'shippit/sync_order/all_orders' => 'shippit/sync_order/send_all_orders_active'
+	'shippit/sync_order/product_unit_weight' => 'shippit/sync_item/product_unit_weight',
+	'shippit/sync_order/product_location_active' => 'shippit/sync_item/product_location_active',
+	'shippit/sync_order/product_location_attribute_code' => 'shippit/sync_item/product_location_attribute_code'
 );
 
 foreach ($configOptions as $configOptionOldKey => $configOptionNewKey) {
     $configOptionValue = Mage::getStoreConfig($configOptionOldKey);
 
     if (!is_null($configOptionValue)) {
-        if (is_array($configOptionNewKey)) {
-            foreach ($configOptionNewKey as $configOptionNewKeyItem) {
-                Mage::getConfig()->saveConfig(
-                    $configOptionNewKeyItem,
-                    $configOptionValue,
-                    'default',
-                    0
-                );
-            }
-        }
-        else {
-            Mage::getConfig()->saveConfig(
-                $configOptionNewKey,
-                $configOptionValue,
-                'default',
-                0
-            );
-        }
+        Mage::getConfig()->saveConfig(
+            $configOptionNewKey,
+            $configOptionValue,
+            'default',
+            0
+        );
     }
 }
 

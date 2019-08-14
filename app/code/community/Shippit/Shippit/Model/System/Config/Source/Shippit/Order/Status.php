@@ -14,20 +14,19 @@
  * @license    http://www.shippit.com/terms
  */
 
-class Shippit_Shippit_Model_System_Config_Source_Shippit_Environment
+class Shippit_Shippit_Model_System_Config_Source_Shippit_Order_Status
 {
     public function toOptionArray()
     {
-        $optionsArray = array(
-            array(
-                'label' => 'Live',
-                'value' => 'production'
-            ),
-            array(
-                'label' => 'Sandbox',
-                'value' => 'staging'
-            )
-        );
+        $optionsArray = array();
+
+        $orderStatusCollection = Mage::getModel('sales/order_status')->getResourceCollection()->getData();
+
+        foreach($orderStatusCollection as $orderStatus) {
+            $optionsArray[] = array (
+                'value' => $orderStatus['status'], 'label' => $orderStatus['label']
+            );
+        }
 
         return $optionsArray;
     }

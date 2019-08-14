@@ -22,7 +22,7 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
     protected $helper;
     protected $api;
     protected $carrierCode;
-    protected $itemsHelper;
+    protected $itemHelper;
     protected $order;
 
     /**
@@ -46,16 +46,16 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
     const PARCEL_ATTRIBUTES         = 'parcel_attributes';
 
     // Shippit Service Class API Mappings
-    const SHIPPING_SERVICE_STANDARD        = 'CouriersPlease';
-    const SHIPPING_SERVICE_EXPRESS         = 'eparcelexpress';
-    const SHIPPING_SERVICE_PRIORITY        = 'Bonds';
-    const SHIPPING_SERVICE_INTERNATIONAL   = 'Dhl';
+    const SHIPPING_SERVICE_STANDARD        = 'standard';
+    const SHIPPING_SERVICE_EXPRESS         = 'express';
+    const SHIPPING_SERVICE_PRIORITY        = 'priority';
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->helper = Mage::helper('shippit/sync_order');
         $this->api = Mage::helper('shippit/api');
         $this->carrierCode = $this->helper->getCarrierCode();
-        $this->itemsHelper = Mage::helper('shippit/sync_order_items');
+        $this->itemHelper = Mage::helper('shippit/sync_item');
     }
 
     public function processSyncOrder(Shippit_Shippit_Model_Sync_Order $syncOrder)
@@ -119,7 +119,7 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
         // Attempt to retrieve from the postcode lookup for AU Addresses
         if (empty($deliveryState) && $this->getDeliveryCountry() == 'AU') {
             $postcodeState = $this->helper->getStateFromPostcode($this->getDeliveryPostcode());
-        
+
             if ($postcodeState) {
                 $this->setData(self::DELIVERY_STATE, $postcodeState);
             }
@@ -127,7 +127,7 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
 
         $deliveryState = $this->getDeliveryState();
         $deliverySuburb = $this->getDeliverySuburb();
-        
+
         // If the delivery state is empty
         // Copy the suburb field to the state field
         if (empty($deliveryState) && !empty($deliverySuburb)) {
@@ -158,6 +158,9 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
                     $item->getQty(),
                     $item->getPrice(),
                     $item->getWeight(),
+                    $item->getLength(),
+                    $item->getWidth(),
+                    $item->getDepth(),
                     $item->getLocation()
                 );
             }
@@ -358,13 +361,6 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
      */
     public function setShippingMethod($shippingMethod = null)
     {
-        // if the order is a priority delivery,
-        // get the special delivery attributes
-        if ($shippingMethod == 'priority') {
-            $deliveryDate = $this->_getOrderDeliveryDate($this->order);
-            $deliveryWindow = $this->_getOrderDeliveryWindow($this->order);
-        }
-
         // set the courier details based on the shipping method
         if ($shippingMethod == 'standard') {
             return $this->setCourierType(self::SHIPPING_SERVICE_STANDARD);
@@ -372,13 +368,17 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
         elseif ($shippingMethod == 'express') {
             return $this->setCourierType(self::SHIPPING_SERVICE_EXPRESS);
         }
-        elseif ($shippingMethod == 'priority' && isset($deliveryDate) && isset($deliveryWindow)) {
-            return $this->setCourierType(self::SHIPPING_SERVICE_PRIORITY)
-                ->setDeliveryDate($deliveryDate)
-                ->setDeliveryWindow($deliveryWindow);
-        }
-        elseif ($shippingMethod == 'international') {
-            return $this->setCourierType(self::SHIPPING_SERVICE_INTERNATIONAL);
+        elseif ($shippingMethod == 'priority') {
+            // get the special delivery attributes
+            $deliveryDate = $this->_getOrderDeliveryDate($this->order);
+            $deliveryWindow = $this->_getOrderDeliveryWindow($this->order);
+
+            if (!empty($deliveryDate) && !empty($deliveryWindow)) {
+                $this->setDeliveryDate($deliveryDate);
+                $this->setDeliveryWindow($deliveryWindow);
+            }
+
+            return $this->setCourierType(self::SHIPPING_SERVICE_PRIORITY);
         }
         else {
             return $this->setData(self::COURIER_TYPE, self::SHIPPING_SERVICE_STANDARD);
@@ -395,7 +395,7 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
             $shippingOptions = str_replace($this->carrierCode . '_', '', $shippingMethod);
             $shippingOptions = explode('_', $shippingOptions);
             $courierData = array();
-            
+
             if (isset($shippingOptions[0])) {
                 if ($shippingOptions[0] == 'priority') {
                     return $shippingOptions[1];
@@ -423,7 +423,7 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
             $shippingOptions = str_replace($this->carrierCode . '_', '', $shippingMethod);
             $shippingOptions = explode('_', $shippingOptions);
             $courierData = array();
-            
+
             if (isset($shippingOptions[0])) {
                 if ($shippingOptions[0] == 'priority') {
                     return $shippingOptions[2];
@@ -634,7 +634,7 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
      * Add a parcel with attributes
      *
      */
-    public function addItem($sku, $title, $qty, $price, $weight = 0, $location = null)
+    public function addItem($sku, $title, $qty, $price, $weight = 0, $length = null, $width = null, $depth = null, $location = null)
     {
         $parcelAttributes = $this->getParcelAttributes();
 
@@ -645,12 +645,24 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
         $newParcel = array(
             'sku' => $sku,
             'title' => $title,
-            'qty' => $qty,
-            'price' => $price,
+            'qty' => (float) $qty,
+            'price' => (float) $price,
             // if a 0 weight is provided, stub the weight to 0.2kg
-            'weight' => ($weight == 0 ? 0.2 : $weight),
+            'weight' => (float) ($weight == 0 ? 0.2 : $weight),
             'location' => $location
         );
+
+        // for dimensions, ensure the item has values for all dimensions
+        if (!empty((float) $length) && !empty((float) $width) && !empty((float) $depth)) {
+            $newParcel = array_merge(
+                $newParcel,
+                array(
+                    'length' => (float) $length,
+                    'width' => (float) $width,
+                    'depth' => (float) $depth
+                )
+            );
+        }
 
         $parcelAttributes[] = $newParcel;
 

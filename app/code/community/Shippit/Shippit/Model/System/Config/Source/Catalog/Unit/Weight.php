@@ -21,14 +21,14 @@ class Shippit_Shippit_Model_System_Config_Source_Catalog_Unit_Weight
         $optionsArray = array(
             array(
                 'label' => 'Kilograms',
-                'value' => Shippit_Shippit_Helper_Sync_Order_Items::UNIT_WEIGHT_KILOGRAMS
+                'value' => Shippit_Shippit_Helper_Sync_Item::UNIT_WEIGHT_KILOGRAMS
             ),
             array(
                 'label' => 'Grams',
-                'value' => Shippit_Shippit_Helper_Sync_Order_Items::UNIT_WEIGHT_GRAMS
+                'value' => Shippit_Shippit_Helper_Sync_Item::UNIT_WEIGHT_GRAMS
             )
         );
-        
+
         return $optionsArray;
     }
 }

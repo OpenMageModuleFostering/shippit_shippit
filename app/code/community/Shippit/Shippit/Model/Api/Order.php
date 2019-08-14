@@ -23,12 +23,12 @@ class Shippit_Shippit_Model_Api_Order extends Mage_Core_Model_Abstract
 {
     protected $api;
     protected $helper;
-    protected $itemsHelper;
+    protected $itemHelper;
 
     public function __construct()
     {
         $this->helper = Mage::helper('shippit/sync_order');
-        $this->itemsHelper = Mage::helper('shippit/sync_order_items');
+        $this->itemHelper = Mage::helper('shippit/sync_item');
         $this->api = Mage::helper('shippit/api');
         $this->logger = Mage::getModel('shippit/logger');
     }
@@ -64,7 +64,7 @@ class Shippit_Shippit_Model_Api_Order extends Mage_Core_Model_Abstract
     {
         $storeId = $this->getStoreId($store);
 
-        return Mage::getModel('shippit/sync_order')
+        $syncOrders = Mage::getModel('shippit/sync_order')
             ->getCollection()
             ->join(
                 array('order' => 'sales/order'),
@@ -77,6 +77,23 @@ class Shippit_Shippit_Model_Api_Order extends Mage_Core_Model_Abstract
             ->addFieldToFilter('main_table.attempt_count', array('lteq' => Shippit_Shippit_Model_Sync_Order::SYNC_MAX_ATTEMPTS))
             ->addFieldToFilter('order.state', array('eq' => Mage_Sales_Model_Order::STATE_PROCESSING))
             ->addFieldToFilter('order.store_id', array('eq' => $storeId));
+
+        // Check if order status filtering is active
+        if ($this->helper->isFilterOrderStatusActive()) {
+            $filterStatus = $this->helper->getFilterOrderStatus();
+
+            // ensure there is a filtering value present
+            if (!empty($filterStatus)) {
+                $syncOrders->addFieldToFilter(
+                    'order.status',
+                    array(
+                        'in' => $filterStatus
+                    )
+                );
+            }
+        }
+
+        return $syncOrders;
     }
 
     private function getStoreId($store)
@@ -88,17 +105,11 @@ class Shippit_Shippit_Model_Api_Order extends Mage_Core_Model_Abstract
             return $store;
         }
     }
-    
+
     public function sync($syncOrder, $displayNotifications = false)
     {
         try {
             $order = $syncOrder->getOrder();
-
-            // If the order is destined for international, override the shipping method as international
-            if ($order->getShippingAddress()->getCountry() != 'AU'
-                && $syncOrder->getShippingMethod() != 'international') {
-                $syncOrder->setShippingMethod('international');
-            }
 
             // Add attempt
             $syncOrder->setAttemptCount($syncOrder->getAttemptCount() + 1);
@@ -106,7 +117,7 @@ class Shippit_Shippit_Model_Api_Order extends Mage_Core_Model_Abstract
             // Build the order request
             $orderRequest = Mage::getModel('shippit/request_api_order')
                 ->processSyncOrder($syncOrder);
-                
+
             $apiResponse = $this->api->sendOrder($orderRequest, $syncOrder->getApiKey());
 
             // Add the order tracking details to

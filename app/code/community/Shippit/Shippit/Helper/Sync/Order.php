@@ -52,6 +52,16 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
         return parent::isActive() && self::getStoreConfig('manual_sync_active', true);
     }
 
+    public function isFilterOrderStatusActive()
+    {
+        return self::getStoreConfig('filter_order_status_active');
+    }
+
+    public function getFilterOrderStatus()
+    {
+        return explode(',', self::getStoreConfig('filter_order_status'));
+    }
+
     public function getMode()
     {
         return self::getStoreConfig('mode');
@@ -60,21 +70,6 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
     public function getSendAllOrders()
     {
         return self::getStoreConfig('send_all_orders');
-    }
-
-    public function getProductUnitWeight()
-    {
-        return self::getStoreConfig('product_unit_weight');
-    }
-
-    public function isProductLocationActive()
-    {
-        return self::getStoreConfig('product_location_active', true);
-    }
-
-    public function getProductLocationAttributeCode()
-    {
-        return self::getStoreConfig('product_location_attribute_code');
     }
 
     public function getShippingMethodMapping()
@@ -91,7 +86,8 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
         return $mappings;
     }
 
-    // Helper Methods
+    // BEGIN: Logic Helper Methods
+
     public function getShippitShippingMethod($shippingMethod)
     {
         // If the shipping method is a shippit method,
@@ -100,13 +96,13 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
             $shippingOptions = str_replace(self::CARRIER_CODE . '_', '', $shippingMethod);
             $shippingOptions = explode('_', $shippingOptions);
             $courierData = array();
-            
+
             if (isset($shippingOptions[0])) {
                 $method = strtolower($shippingOptions[0]);
 
                 // allows for legacy capability where
                 // "priority" was referred to as "premium"
-                if ($method == 'priority' || $method = 'premium') {
+                if ($method == 'priority' || $method == 'premium') {
                     return 'priority';
                 }
                 elseif ($method == 'express') {
@@ -117,7 +113,7 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
                 }
             }
         }
-        
+
         // Use the mapping values and attempt to get a value
         $shippingMethodMapping = $this->getShippingMethodMapping();
 
@@ -129,4 +125,6 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
         // All options have failed, return false
         return false;
     }
+
+    // END: Login Helper Methods
 }

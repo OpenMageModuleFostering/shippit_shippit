@@ -115,16 +115,25 @@ class Shippit_Shippit_Model_Shipping_Carrier_Shippit extends Mage_Shipping_Model
         // Process the response and return available options
         foreach ($shippingQuotes as $shippingQuoteKey => $shippingQuote) {
             if ($shippingQuote->success) {
-                if ($shippingQuote->courier_type == 'Bonds'
-                    && $isPriorityAvailable) {
-                    $this->_addPriorityQuote($rateResult, $shippingQuote);
-                }
-                elseif ($shippingQuote->courier_type == 'eparcelexpress'
-                    && $isExpressAvailable) {
-                    $this->_addExpressQuote($rateResult, $shippingQuote);
-                }
-                elseif ($isStandardAvailable) {
-                    $this->_addStandardQuote($rateResult, $shippingQuote);
+                switch ($shippingQuote->service_level) {
+                    case 'priority':
+                        if ($isPriorityAvailable) {
+                            $this->_addPriorityQuote($rateResult, $shippingQuote);
+                        }
+
+                        break;
+                    case 'express':
+                        if ($isExpressAvailable) {
+                            $this->_addExpressQuote($rateResult, $shippingQuote);
+                        }
+
+                        break;
+                    case 'standard':
+                        if ($isStandardAvailable) {
+                            $this->_addStandardQuote($rateResult, $shippingQuote);
+                        }
+
+                        break;
                 }
             }
         }
@@ -141,7 +150,7 @@ class Shippit_Shippit_Model_Shipping_Carrier_Shippit extends Mage_Shipping_Model
                 ->setMethod('standard')
                 ->setMethodTitle('Standard')
                 ->setCost($shippingQuoteQuote->price)
-                ->setPrice($shippingQuoteQuote->price);
+                ->setPrice($this->_getQuotePrice($shippingQuoteQuote->price));
 
             $rateResult->append($rateResultMethod);
         }
@@ -156,7 +165,7 @@ class Shippit_Shippit_Model_Shipping_Carrier_Shippit extends Mage_Shipping_Model
                 ->setMethod('express')
                 ->setMethodTitle('Express')
                 ->setCost($shippingQuoteQuote->price)
-                ->setPrice($shippingQuoteQuote->price);
+                ->setPrice($this->_getQuotePrice($shippingQuoteQuote->price));
 
             $rateResult->append($rateResultMethod);
         }
@@ -193,10 +202,32 @@ class Shippit_Shippit_Model_Shipping_Carrier_Shippit extends Mage_Shipping_Model
                 ->setMethod($method)
                 ->setMethodTitle($methodTitle)
                 ->setCost($shippingQuoteQuote->price)
-                ->setPrice($shippingQuoteQuote->price);
+                ->setPrice($this->_getQuotePrice($shippingQuoteQuote->price));
 
             $rateResult->append($rateResultMethod);
         }
+    }
+
+    /**
+     * Get the quote price, including the margin amount if enabled
+     * @param  float $quotePrice The quote amount
+     * @return float             The quote amount, with margin if applicable
+     */
+    private function _getQuotePrice($quotePrice)
+    {
+        switch ($this->helper->getMargin()) {
+            case 'fixed':
+                $quotePrice += (float) $this->helper->getMarginAmount();
+                break;
+            case 'percentage':
+                $quotePrice *= (1 + ( (float) $this->helper->getMarginAmount() / 100));
+                break;
+        }
+
+        // ensure we get the lowest price, but not below 0.
+        $quotePrice = max(0, $quotePrice);
+
+        return $quotePrice;
     }
 
     public function isTrackingAvailable()
@@ -252,7 +283,7 @@ class Shippit_Shippit_Model_Shipping_Carrier_Shippit extends Mage_Shipping_Model
 
     /**
      * Checks the request and ensures all products are either enabled, or part of the attributes elidgable
-     * 
+     *
      * @param  [type] $request The shipment request
      * @return boolean         True or false
      */
@@ -311,7 +342,7 @@ class Shippit_Shippit_Model_Shipping_Carrier_Shippit extends Mage_Shipping_Model
 
         $attributeCode = $this->helper->getEnabledProductAttributeCode();
         $attributeValue = $this->helper->getEnabledProductAttributeValue();
-        
+
         if (!empty($attributeCode) && !empty($attributeValue)) {
             $attributeProductCount = Mage::getModel('catalog/product')
                 ->getCollection()
@@ -349,7 +380,7 @@ class Shippit_Shippit_Model_Shipping_Carrier_Shippit extends Mage_Shipping_Model
                 'weight' => ($request->getPackageWeight() / $request->getPackageQty())
             )
         );
-        
+
         return $parcelAttributes;
     }
 }
