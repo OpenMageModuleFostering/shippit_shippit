@@ -1,0 +1,16 @@
+{
+    "name": "OpenMageModuleFostering/Shippit_Shippit",
+    "type": "magento-module",
+    "license": "Open-Software-Licence",
+    "homepage": "",
+    "description": "Shippit Magento Integration Module",
+    "authors": [
+    {
+        "name": "Matthew Muscat",
+        "email": "matthew@mamis.com.au"
+    }
+],
+    "suggest": {
+        "magento-hackathon/magento-composer-installer": "*"
+    }
+}
