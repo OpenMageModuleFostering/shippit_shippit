@@ -14,11 +14,8 @@
  * @license    http://www.shippit.com/terms
  */
 
-class Shippit_Shippit_Helper_Sync_Order_Items extends Shippit_Shippit_Helper_Sync_Order
+class Shippit_Shippit_Helper_Order_Items extends Mage_Core_Helper_Abstract
 {
-    const UNIT_WEIGHT_KILOGRAMS = 'kilograms';
-    const UNIT_WEIGHT_GRAMS = 'grams';
-
     protected $locationAttributeCode = null;
 
     public function getSkus($items)
@@ -86,16 +83,6 @@ class Shippit_Shippit_Helper_Sync_Order_Items extends Shippit_Shippit_Helper_Syn
         }
 
         return false;
-    }
-
-    public function getWeight($weight)
-    {
-        if ($this->getProductUnitWeight() == self::UNIT_WEIGHT_GRAMS
-            && $weight != 0) {
-            return ($weight / 1000);
-        }
-
-        return $weight;
     }
 
     public function getLocation($item)

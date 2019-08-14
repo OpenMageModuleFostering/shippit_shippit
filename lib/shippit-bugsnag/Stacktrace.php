@@ -8,13 +8,6 @@ class Bugsnag_Stacktrace
     public $frames = array();
     private $config;
 
-    /**
-     * Generate a new stacktrace using the given config.
-     *
-     * @param Bugsnag_Configuration $config the configuration instance
-     *
-     * @return self
-     */
     public static function generate($config)
     {
         // Reduce memory usage by omitting args and objects from backtrace
@@ -26,39 +19,20 @@ class Bugsnag_Stacktrace
             $backtrace = debug_backtrace();
         }
 
-        return self::fromBacktrace($config, $backtrace, '[generator]', 0);
+        return self::fromBacktrace($config, $backtrace, "[generator]", 0);
     }
 
-    /**
-     * Create a new stacktrace instance from a frame.
-     *
-     * @param Bugsnag_Configuration $config the configuration instance
-     * @param string                $file   the associated file
-     * @param int                   $line   the line number
-     *
-     * @return self
-     */
     public static function fromFrame($config, $file, $line)
     {
-        $stacktrace = new self($config);
-        $stacktrace->addFrame($file, $line, '[unknown]');
+        $stacktrace = new Bugsnag_Stacktrace($config);
+        $stacktrace->addFrame($file, $line, "[unknown]");
 
         return $stacktrace;
     }
 
-    /**
-     * Create a new stacktrace instance from a backtrace.
-     *
-     * @param Bugsnag_Configuration $config    the configuration instance
-     * @param array                 $backtrace the associated backtrace
-     * @param int                   $topFile   the top file to use
-     * @param int                   $topLine   the top line to use
-     *
-     * @return self
-     */
     public static function fromBacktrace($config, $backtrace, $topFile, $topLine)
     {
-        $stacktrace = new self($config);
+        $stacktrace = new Bugsnag_Stacktrace($config);
 
         // PHP backtrace's are misaligned, we need to shift the file/line down a frame
         foreach ($backtrace as $frame) {
@@ -75,7 +49,7 @@ class Bugsnag_Stacktrace
                 $topFile = $frame['file'];
                 $topLine = $frame['line'];
             } else {
-                $topFile = '[internal]';
+                $topFile = "[internal]";
                 $topLine = 0;
             }
         }
@@ -86,50 +60,21 @@ class Bugsnag_Stacktrace
         return $stacktrace;
     }
 
-    /**
-     * Does the given frame internally belong to bugsnag.
-     *
-     * @param array $frame the given frame to check
-     *
-     * @return bool
-     */
     public static function frameInsideBugsnag($frame)
     {
         return isset($frame['class']) && strpos($frame['class'], 'Bugsnag_') === 0;
     }
 
-    /**
-     * Create a new stacktrace instance.
-     *
-     * @param Bugsnag_Configuration $config the configuration instance
-     *
-     * @return void
-     */
     public function __construct($config)
     {
         $this->config = $config;
     }
 
-    /**
-     * Get the array representation.
-     *
-     * @return array
-     */
     public function toArray()
     {
         return $this->frames;
     }
 
-    /**
-     * Add the given frame to the stacktrace.
-     *
-     * @param string      $file   the associated file
-     * @param int         $line   the line number
-     * @param string      $method the method called
-     * @param string|null $class the associated class
-     *
-     * @return void
-     */
     public function addFrame($file, $line, $method, $class = null)
     {
         // Account for special "filenames" in eval'd code
@@ -141,13 +86,13 @@ class Bugsnag_Stacktrace
 
         // Construct the frame
         $frame = array(
-            'lineNumber' => (int) $line,
+            'lineNumber' => $line,
             'method' => $class ? "$class::$method" : $method,
         );
 
         // Attach some lines of code for context
-        if ($this->config->sendCode) {
-            $frame['code'] = $this->getCode($file, $line, self::$DEFAULT_NUM_LINES);
+        if($this->config->sendCode) {
+            $frame['code'] = $this->getCode($file, $line, Bugsnag_Stacktrace::$DEFAULT_NUM_LINES);
         }
 
         // Check if this frame is inProject
@@ -163,19 +108,10 @@ class Bugsnag_Stacktrace
         $this->frames[] = $frame;
     }
 
-    /**
-     * Extract the code for the given file and lines.
-     *
-     * @param string $path     the path to the file
-     * @param int    $line     the line to centre about
-     * @param string $numLines the number of lines to fetch
-     *
-     * @return string[]|null
-     */
     private function getCode($path, $line, $numLines)
     {
         if (empty($path) || empty($line) || !file_exists($path)) {
-            return;
+            return NULL;
         }
 
         try {
@@ -197,13 +133,13 @@ class Bugsnag_Stacktrace
 
             $file->seek($start - 1);
             while ($file->key() < $end) {
-                $code[$file->key() + 1] = rtrim(substr($file->current(), 0, self::$MAX_LINE_LENGTH));
+                $code[$file->key() + 1] = rtrim(substr($file->current(), 0, Bugsnag_Stacktrace::$MAX_LINE_LENGTH));
                 $file->next();
             }
 
             return $code;
         } catch (RuntimeException $ex) {
-            return;
+            return null;
         }
     }
 }

@@ -36,7 +36,7 @@ class Shippit_Shippit_Model_Request_Sync_Order extends Varien_Object
 
     public function __construct() {
         $this->helper = Mage::helper('shippit/sync_order');
-        $this->itemsHelper = Mage::helper('shippit/sync_order_items');
+        $this->itemsHelper = Mage::helper('shippit/order_items');
     }
 
     /**
@@ -77,28 +77,29 @@ class Shippit_Shippit_Model_Request_Sync_Order extends Varien_Object
         $itemsAdded = 0;
 
         foreach ($itemsCollection as $item) {
-            // Skip the item if...
-            // - it does not need to be shipped individually
-            // - it is a virtual item
-            if ($item->isDummy(true) || $item->getIsVirtual()) {
+            if ($item->getHasChildren()) {
                 continue;
             }
 
             $requestedQty = $this->itemsHelper->getItemData($items, 'sku', $item->getSku(), 'qty');
-            $itemQty = $this->itemsHelper->getQtyToShip($item, $requestedQty);
-            $itemPrice = $this->_getItemPrice($item);
+
+            /**
+             * Magento marks a shipment only for the parent item in the order
+             * get the parent item to determine the correct qty to ship
+             */
+            $rootItem = $this->_getRootItem($item);
+            
+            $itemQty = $this->itemsHelper->getQtyToShip($rootItem, $requestedQty);
             $itemWeight = $item->getWeight();
 
-            $childItem = $this->_getChildItem($item);
-            $itemName = $childItem->getName();
-            $itemLocation = $this->itemsHelper->getLocation($childItem);
+            $itemLocation = $this->itemsHelper->getLocation($item);
 
             if ($itemQty > 0) {
                 $this->addItem(
                     $item->getSku(),
-                    $itemName,
+                    $item->getName(),
                     $itemQty,
-                    $itemPrice,
+                    $rootItem->getBasePrice(),
                     $itemWeight,
                     $itemLocation
                 );
@@ -114,34 +115,6 @@ class Shippit_Shippit_Model_Request_Sync_Order extends Varien_Object
         return $this;
     }
 
-    private function _getItemPrice($item)
-    {
-        $rootItem = $this->_getRootItem($item);
-
-        // Get the item price
-        // - If the root item is a bundle, use the item price
-        //   Otherwise, use the root item price
-        if ($rootItem->getProductType() == 'bundle') {
-            // if we are sending the bundle together
-            if ($rootItem->getId() == $item->getId()) {
-                return $rootItem->getBasePriceInclTax();
-            }
-            // if we are sending individually
-            else {
-                return $item->getBasePriceInclTax();
-            }
-        }
-        else {
-            return $rootItem->getBasePriceInclTax();
-        }
-    }
-
-    /**
-     * Returns the parent item of the item passed
-     *
-     * @param  Mage_Sales_Model_Order_Item $item
-     * @return Mage_Sales_Model_Order_Item
-     */
     private function _getRootItem($item)
     {
         if ($item->getParentItem()) {
@@ -152,52 +125,16 @@ class Shippit_Shippit_Model_Request_Sync_Order extends Varien_Object
         }
     }
 
-    /**
-     * Returns the first child item of the item passed
-     * - If the item is a bundle and is being shipped together
-     *   we return the bundle item, as it's the "shipped" product
-     *
-     * @param  Mage_Sales_Model_Order_Item $item
-     * @return Mage_Sales_Model_Order_Item
-     */
-    private function _getChildItem($item)
-    {
-        if ($item->getHasChildren()) {
-            $rootItem = $this->_getRootItem($item);
-
-            // Get the first child item
-            // - If the root item is a bundle, use the item
-            //   Otherwise, use the root item
-            if ($rootItem->getProductType() == 'bundle') {
-                // if we are sending the bundle together
-                if ($rootItem->getId() == $item->getId()) {
-                    return $rootItem;
-                }
-                else {
-                    $items = $item->getChildrenItems();
-
-                    return reset($items);
-                }
-            }
-            else {
-                $items = $item->getChildrenItems();
-                
-                return reset($items);
-            }
-        }
-        else {
-            return $item;
-        }
-    }
-
     public function setShippingMethod($shippingMethod)
     {
-        // Standard, express, priority and international options are available
+        // Standard, express and priority options are available
+        // Priority services requires the use of live quoting to determine
+        // booking availability
         $validShippingMethods = array(
             'standard',
             'express',
-            'priority',
-            'international'
+            'international',
+            'priority'
         );
 
         // if the shipping method passed is not a standard shippit service class, attempt to get a service class based on the configured mapping
@@ -237,9 +174,9 @@ class Shippit_Shippit_Model_Request_Sync_Order extends Varien_Object
         $newItem = array(
             'sku' => $sku,
             'title' => $title,
-            'qty' => (float) $qty,
-            'price' => (float) $price,
-            'weight' => (float) $this->itemsHelper->getWeight($weight),
+            'qty' => $qty,
+            'price' => $price,
+            'weight' => $weight,
             'location' => $location
         );
 

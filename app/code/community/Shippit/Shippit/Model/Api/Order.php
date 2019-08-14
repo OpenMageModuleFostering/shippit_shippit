@@ -28,7 +28,7 @@ class Shippit_Shippit_Model_Api_Order extends Mage_Core_Model_Abstract
     public function __construct()
     {
         $this->helper = Mage::helper('shippit/sync_order');
-        $this->itemsHelper = Mage::helper('shippit/sync_order_items');
+        $this->itemsHelper = Mage::helper('shippit/order_items');
         $this->api = Mage::helper('shippit/api');
         $this->logger = Mage::getModel('shippit/logger');
     }
@@ -64,7 +64,7 @@ class Shippit_Shippit_Model_Api_Order extends Mage_Core_Model_Abstract
     {
         $storeId = $this->getStoreId($store);
 
-        $syncOrders = Mage::getModel('shippit/sync_order')
+        return Mage::getModel('shippit/sync_order')
             ->getCollection()
             ->join(
                 array('order' => 'sales/order'),
@@ -77,23 +77,6 @@ class Shippit_Shippit_Model_Api_Order extends Mage_Core_Model_Abstract
             ->addFieldToFilter('main_table.attempt_count', array('lteq' => Shippit_Shippit_Model_Sync_Order::SYNC_MAX_ATTEMPTS))
             ->addFieldToFilter('order.state', array('eq' => Mage_Sales_Model_Order::STATE_PROCESSING))
             ->addFieldToFilter('order.store_id', array('eq' => $storeId));
-
-        // Check if order status filtering is active
-        if ($this->helper->isFilterOrderStatusActive()) {
-            $filterStatus = $this->helper->getFilterOrderStatus();
-
-            // ensure there is a filtering value present
-            if (!empty($filterStatus)) {
-                $syncOrders->addFieldToFilter(
-                    'order.status',
-                    array(
-                        'in' => $filterStatus
-                    )
-                );
-            }
-        }
-
-        return $syncOrders;
     }
 
     private function getStoreId($store)

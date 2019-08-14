@@ -62,11 +62,6 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
         return self::getStoreConfig('send_all_orders');
     }
 
-    public function getProductUnitWeight()
-    {
-        return self::getStoreConfig('product_unit_weight');
-    }
-
     public function isProductLocationActive()
     {
         return self::getStoreConfig('product_location_active', true);
@@ -106,7 +101,7 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
 
                 // allows for legacy capability where
                 // "priority" was referred to as "premium"
-                if ($method == 'priority' || $method == 'premium') {
+                if ($method == 'priority' || $method = 'premium') {
                     return 'priority';
                 }
                 elseif ($method == 'express') {
@@ -128,15 +123,5 @@ class Shippit_Shippit_Helper_Sync_Order extends Shippit_Shippit_Helper_Data
 
         // All options have failed, return false
         return false;
-    }
-
-    public function isFilterOrderStatusActive()
-    {
-        return self::getStoreConfig('filter_order_status_active');
-    }
-    
-    public function getFilterOrderStatus()
-    {
-        return explode(',', self::getStoreConfig('filter_order_status'));
     }
 }

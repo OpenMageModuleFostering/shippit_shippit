@@ -46,16 +46,16 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
     const PARCEL_ATTRIBUTES         = 'parcel_attributes';
 
     // Shippit Service Class API Mappings
-    const SHIPPING_SERVICE_STANDARD        = 'standard';
-    const SHIPPING_SERVICE_EXPRESS         = 'express';
-    const SHIPPING_SERVICE_PRIORITY        = 'priority';
-    const SHIPPING_SERVICE_INTERNATIONAL   = 'international';
+    const SHIPPING_SERVICE_STANDARD        = 'CouriersPlease';
+    const SHIPPING_SERVICE_EXPRESS         = 'eparcelexpress';
+    const SHIPPING_SERVICE_PRIORITY        = 'Bonds';
+    const SHIPPING_SERVICE_INTERNATIONAL   = 'Dhl';
 
     public function __construct() {
         $this->helper = Mage::helper('shippit/sync_order');
         $this->api = Mage::helper('shippit/api');
         $this->carrierCode = $this->helper->getCarrierCode();
-        $this->itemsHelper = Mage::helper('shippit/sync_order_items');
+        $this->itemsHelper = Mage::helper('shippit/order_items');
     }
 
     public function processSyncOrder(Shippit_Shippit_Model_Sync_Order $syncOrder)
@@ -358,6 +358,13 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
      */
     public function setShippingMethod($shippingMethod = null)
     {
+        // if the order is a priority delivery,
+        // get the special delivery attributes
+        if ($shippingMethod == 'priority') {
+            $deliveryDate = $this->_getOrderDeliveryDate($this->order);
+            $deliveryWindow = $this->_getOrderDeliveryWindow($this->order);
+        }
+
         // set the courier details based on the shipping method
         if ($shippingMethod == 'standard') {
             return $this->setCourierType(self::SHIPPING_SERVICE_STANDARD);
@@ -365,17 +372,10 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
         elseif ($shippingMethod == 'express') {
             return $this->setCourierType(self::SHIPPING_SERVICE_EXPRESS);
         }
-        elseif ($shippingMethod == 'priority') {
-            // get the special delivery attributes
-            $deliveryDate = $this->_getOrderDeliveryDate($this->order);
-            $deliveryWindow = $this->_getOrderDeliveryWindow($this->order);
-            
-            if (!empty($deliveryDate) && !empty($deliveryWindow)) {
-                $this->setDeliveryDate($deliveryDate);
-                $this->setDeliveryWindow($deliveryWindow);
-            }
-
-            return $this->setCourierType(self::SHIPPING_SERVICE_PRIORITY);
+        elseif ($shippingMethod == 'priority' && isset($deliveryDate) && isset($deliveryWindow)) {
+            return $this->setCourierType(self::SHIPPING_SERVICE_PRIORITY)
+                ->setDeliveryDate($deliveryDate)
+                ->setDeliveryWindow($deliveryWindow);
         }
         elseif ($shippingMethod == 'international') {
             return $this->setCourierType(self::SHIPPING_SERVICE_INTERNATIONAL);
@@ -645,10 +645,10 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
         $newParcel = array(
             'sku' => $sku,
             'title' => $title,
-            'qty' => (float) $qty,
-            'price' => (float) $price,
+            'qty' => $qty,
+            'price' => $price,
             // if a 0 weight is provided, stub the weight to 0.2kg
-            'weight' => (float) ($weight == 0 ? 0.2 : $weight),
+            'weight' => ($weight == 0 ? 0.2 : $weight),
             'location' => $location
         );
 
