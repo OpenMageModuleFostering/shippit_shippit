@@ -9,7 +9,7 @@
  * http://www.shippit.com/terms
  *
  * @category   Shippit
- * @copyright  Copyright (c) 2016 by Shippit Pty Ltd (http://www.shippit.com)
+ * @copyright  Copyright (c) Shippit Pty Ltd (http://www.shippit.com)
  * @author     Matthew Muscat <matthew@mamis.com.au>
  * @license    http://www.shippit.com/terms
  */
@@ -87,8 +87,20 @@ class Shippit_Shippit_Adminhtml_Shippit_OrderController extends Mage_Adminhtml_C
                 ->save();
         }
 
+        // get emulation model
+        $appEmulation = Mage::getSingleton('core/app_emulation');
+
         foreach ($syncOrders as $syncOrder) {
+            $storeId = $syncOrder->getOrder()->getStoreId();
+
+            // Start Store Emulation
+            $environment = $appEmulation->startEnvironmentEmulation($storeId);
+
+            // Sync the order
             $apiOrder->sync($syncOrder, true);
+
+            // Stop Store Emulation
+            $appEmulation->stopEnvironmentEmulation($environment);
         }
 
         $this->_redirect('*/*/index');

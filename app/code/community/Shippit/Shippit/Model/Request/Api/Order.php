@@ -9,7 +9,7 @@
  * http://www.shippit.com/terms
  *
  * @category   Shippit
- * @copyright  Copyright (c) 2016 by Shippit Pty Ltd (http://www.shippit.com)
+ * @copyright  Copyright (c) Shippit Pty Ltd (http://www.shippit.com)
  * @author     Matthew Muscat <matthew@mamis.com.au>
  * @license    http://www.shippit.com/terms
  */
@@ -653,7 +653,7 @@ class Shippit_Shippit_Model_Request_Api_Order extends Varien_Object
         );
 
         // for dimensions, ensure the item has values for all dimensions
-        if (!empty((float) $length) && !empty((float) $width) && !empty((float) $depth)) {
+        if (!empty($length) && !empty($width) && !empty($depth)) {
             $newParcel = array_merge(
                 $newParcel,
                 array(
